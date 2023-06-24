@@ -9,35 +9,49 @@ import (
 )
 
 type City struct {
-	lat  float64
-	long float64
+	Lat  float64
+	Long float64
+}
+type WeatherResponse struct {
+	Info struct {
+		Lat float64 `json:"lat"`
+		Lon float64 `json:"lon"`
+	} `json:"info"`
+	Fact struct {
+		Temp       float64 `json:"temp"`
+		Feels_like float64 `json:"feels_like"`
+	} `json:"fact"`
 }
 
-func WeatherApiRequest(c City) (string, error) {
+func WeatherApiRequest(c City) (WeatherResponse, error) {
 	apikey := os.Getenv("WEATHER_APITOKEN")
-	url := fmt.Sprintf(`https://api.openweathermap.org/data/3.0/onecall?lat=%v&lon=%v&appid=%v`, c.lat, c.long, apikey)
+	url := fmt.Sprintf(`https://api.weather.yandex.ru/v2/forecast?lat=%v&lon=%v`, c.Lat, c.Long)
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
+	req.Header.Set("X-Yandex-API-Key", apikey)
+	fmt.Println(req)
 	if err != nil {
-		return " ", err
+		return WeatherResponse{}, err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return " ", err
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return " ", err
+		return WeatherResponse{}, err
 	}
 	defer resp.Body.Close()
-	var data string
-	json.Unmarshal(body, &data)
-	fmt.Println(data)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return WeatherResponse{}, err
+	}
+	var data WeatherResponse
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		return WeatherResponse{}, fmt.Errorf("failed to parsed response body: %v", err)
+	}
+	fmt.Printf("Temperature equal = %v", data.Fact.Temp)
 	return data, nil
 }
 func main() {
-	var olhovka City = City{lat: 33.44, long: -94.04}
-	res, err := WeatherApiRequest(olhovka)
+	var volgograd City = City{Lat: 48.71939, Long: 44.50183}
+	res, _ := WeatherApiRequest(volgograd)
 	fmt.Println(res)
-	fmt.Println(err)
 }
