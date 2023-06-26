@@ -29,7 +29,6 @@ func WeatherApiRequest(c City) (WeatherResponse, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	req.Header.Set("X-Yandex-API-Key", apikey)
-	fmt.Println(req)
 	if err != nil {
 		return WeatherResponse{}, err
 	}
@@ -47,11 +46,10 @@ func WeatherApiRequest(c City) (WeatherResponse, error) {
 	if err != nil {
 		return WeatherResponse{}, fmt.Errorf("failed to parsed response body: %v", err)
 	}
-	fmt.Printf("Temperature equal = %v", data.Fact.Temp)
+	fmt.Printf("Temperature equal = %v°\n", data.Fact.Temp)
 	return data, nil
 }
 func main() {
 	var volgograd City = City{Lat: 48.71939, Long: 44.50183}
-	res, _ := WeatherApiRequest(volgograd)
-	fmt.Println(res)
+	WeatherApiRequest(volgograd)
 }
