@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
+	"strings"
 )
 
-type City struct {
-	Lat  float64
-	Long float64
-}
 type WeatherResponse struct {
 	Info struct {
 		Lat float64 `json:"lat"`
@@ -23,9 +23,32 @@ type WeatherResponse struct {
 	} `json:"fact"`
 }
 
-func WeatherApiRequest(c City) (WeatherResponse, error) {
+func GeoCode(address string) (float64, float64, error) {
+	apikey := os.Getenv("GEOCODER_APITOKEN")
+	geocodeURL := fmt.Sprintf("https://geocode-maps.yandex.ru/1.x/?geocode=%s&apikey=%s&format=json", url.QueryEscape(address), apikey)
+	response, err := http.Get(geocodeURL)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to Get request")
+	}
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed reading body")
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return 0, 0, err
+	}
+	pos := data["response"].(map[string]interface{})["GeoObjectCollection"].(map[string]interface{})["featureMember"].([]interface{})[0].(map[string]interface{})["GeoObject"].(map[string]interface{})["Point"].(map[string]interface{})["pos"].(string)
+	coordinates := strings.Split(pos, " ")
+	latitude, _ := strconv.ParseFloat(coordinates[1], 64)
+	longitude, _ := strconv.ParseFloat(coordinates[0], 64)
+
+	return latitude, longitude, nil
+}
+func WeatherApiRequest(latitude, longitude float64) (WeatherResponse, error) {
 	apikey := os.Getenv("WEATHER_APITOKEN")
-	url := fmt.Sprintf(`https://api.weather.yandex.ru/v2/forecast?lat=%v&lon=%v`, c.Lat, c.Long)
+	url := fmt.Sprintf(`https://api.weather.yandex.ru/v2/forecast?lat=%v&lon=%v`, latitude, longitude)
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	req.Header.Set("X-Yandex-API-Key", apikey)
@@ -50,6 +73,12 @@ func WeatherApiRequest(c City) (WeatherResponse, error) {
 	return data, nil
 }
 func main() {
-	var volgograd City = City{Lat: 48.71939, Long: 44.50183}
-	WeatherApiRequest(volgograd)
+	var city string
+	fmt.Println("Please enter the city where you want to find out the weather!")
+	fmt.Scanf(`%s`, &city)
+	lat, lon, err := GeoCode(city)
+	if err != nil {
+		return
+	}
+	WeatherApiRequest(lat, lon)
 }
